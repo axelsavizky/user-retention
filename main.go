@@ -1,9 +1,8 @@
 package main
 
 import (
-	"embrace/models"
+	"embrace/userretention"
 	"encoding/csv"
-	"fmt"
 	"log"
 	"os"
 )
@@ -29,17 +28,7 @@ func main() {
 		log.Fatal("Unable to parse file as CSV for "+csvPath, err)
 	}
 
-	dayToUser := make(map[string]models.Set)
+	userRetention := userretention.Calculate(records)
 
-	for _, rawRecord := range records {
-		row := models.RowFromRecord(rawRecord)
-
-		if dayToUser[row.ToKey()] == nil {
-			dayToUser[row.ToKey()] = make(models.Set)
-		}
-		set := dayToUser[row.ToKey()]
-		set.Add(row.UserID)
-	}
-
-	fmt.Println(dayToUser)
+	userretention.PrintOutput(userRetention)
 }

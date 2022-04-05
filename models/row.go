@@ -5,11 +5,9 @@ import (
 	"time"
 )
 
-const keyFormat string = "2006-01-02"
-
 type Row struct {
-	Timestamp time.Time
-	UserID    int64
+	Date   time.Time
+	UserID UserID
 }
 
 func RowFromRecord(record []string) Row {
@@ -20,9 +18,5 @@ func RowFromRecord(record []string) Row {
 	dateWithTime := time.Unix(timestamp, 0).UTC()
 	date := time.Date(dateWithTime.Year(), dateWithTime.Month(), dateWithTime.Day(), 0, 0, 0, 0, dateWithTime.Location())
 
-	return Row{date, userID}
-}
-
-func (row Row) ToKey() string {
-	return row.Timestamp.Format(keyFormat)
+	return Row{date, UserID(userID)}
 }
