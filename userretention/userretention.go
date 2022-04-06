@@ -58,11 +58,11 @@ func sliceToSingleString(s []uint) string {
 // ProcessRecords calculates the user retention of many users grouped by day.
 // It receives the records through a channel as input. Each record should have the timestamp on the first position and the userID on the second position.
 // userRetention is an immutable data structure, so this function returns a new userRetention.
-func (userRetention userRetention) ProcessRecords(records <-chan []string) userRetention {
+func (userRetention userRetention) ProcessRecords(recordsChan <-chan []string) userRetention {
 	startDate := time.Unix(startDateTimestamp, 0).UTC()
 	streakByUserID := make(map[models.UserID]models.UserStreak)
 
-	for rawRecord := range records {
+	for rawRecord := range recordsChan {
 		row := models.RowFromRecord(rawRecord)
 
 		// This is actually the number of date in the range. So the first day will be 1, the second day will be 2, etc

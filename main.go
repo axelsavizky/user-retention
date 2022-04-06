@@ -17,7 +17,6 @@ func main() {
 	}
 
 	csvPath := os.Args[1]
-	// File will not fit in memory. TODO: Stream it!!! https://medium.com/swlh/processing-16gb-file-in-seconds-go-lang-3982c235dfa2
 	inputFile, err := os.Open(csvPath)
 	// Not needed
 	if err != nil {
@@ -25,29 +24,33 @@ func main() {
 	}
 	defer inputFile.Close()
 
-	// Put an arbitrary size to the channel so we can write without waiting someone to read
-	records := make(chan []string, defaultChannelSize)
-	go func() {
-		csvReader := csv.NewReader(inputFile)
-		defer close(records)
+	csvReader := csv.NewReader(inputFile)
 
-		for {
-			record, err := csvReader.Read()
-			if err == io.EOF {
-				break
-			}
-
-			// Not needed
-			if err != nil {
-				log.Fatal("Unable to parse file as CSV for "+csvPath, err)
-			}
-
-			records <- record
-		}
-	}()
+	// Put an arbitrary size to the channel, so we can write without waiting someone to read
+	recordsChan := make(chan []string, defaultChannelSize)
+	go readCsv(csvReader, recordsChan, csvPath)
 
 	userRetention := *userretention.New()
-	userRetention = userRetention.ProcessRecords(records)
+	userRetention = userRetention.ProcessRecords(recordsChan)
 
 	fmt.Println(userRetention.Get())
+}
+
+func readCsv(csvReader *csv.Reader, recordsChan chan<- []string, csvPath string) {
+
+	defer close(recordsChan)
+
+	for {
+		record, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		}
+
+		// Not needed
+		if err != nil {
+			log.Fatal("Unable to parse file as CSV for "+csvPath, err)
+		}
+
+		recordsChan <- record
+	}
 }

@@ -124,15 +124,15 @@ func TestProcessRecords(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			recordsChannel := make(chan []string, 10)
+			recordsChan := make(chan []string, 10)
 			userRetention := *New()
 			go func() {
-				defer close(recordsChannel)
+				defer close(recordsChan)
 				for _, givenRecord := range tc.givenRecords {
-					recordsChannel <- givenRecord
+					recordsChan <- givenRecord
 				}
 			}()
-			userRetention = userRetention.ProcessRecords(recordsChannel)
+			userRetention = userRetention.ProcessRecords(recordsChan)
 			assert.Equal(t, tc.expected, userRetention.streaksByDay)
 		})
 	}
