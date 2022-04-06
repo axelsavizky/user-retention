@@ -3,6 +3,7 @@ package main
 import (
 	"embrace/userretention"
 	"encoding/csv"
+	"fmt"
 	"log"
 	"os"
 )
@@ -30,5 +31,5 @@ func main() {
 
 	userRetention := userretention.Calculate(records)
 
-	userretention.PrintOutput(userRetention)
+	fmt.Println(userRetention.ToString())
 }
