@@ -22,9 +22,9 @@ jobs:
           go version
           go get -u golang.org/x/lint/golint
       - name: Lint
-        run: |
-          go vet .
-          go lint .
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.29
       - name: Test
         run: go test -v
       - name: Build
