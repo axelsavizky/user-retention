@@ -19,12 +19,12 @@ jobs:
           go-version: '1.14'
       - name: Install
         run: |
-          - go version
-          - go get -u golang.org/x/lint/golint
+          go version
+          go get -u golang.org/x/lint/golint
       - name: Lint
         run: |
-          - go vet .
-          - go lint .
+          go vet .
+          go lint .
       - name: Test
         run: go test -v
       - name: Build
