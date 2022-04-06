@@ -11,15 +11,23 @@ import (
 const startDateTimestamp int64 = 1609459200
 const defaultDateRange uint = 14
 
-// StreaksByDay is a structure to store the different streaks grouped by date start.
+type userRetention struct {
+	streaksByDay streaksByDay
+}
+
+func New() *userRetention {
+	return &userRetention{*newStreaksByDay(defaultDateRange)}
+}
+
+// streaksByDay is a structure to store the different streaks grouped by date start.
 // Key: dayNumber (firstDay = 1, secondDay = 2, etc...) which represents the day that the streak stared.
 // Value: slice which each position represents a streak that took i+1 days (with i the slice index).
-type StreaksByDay map[int][]uint
+type streaksByDay map[int][]uint
 
-// NewStreaksByDay returns a StreaksByDay with all the positions initialized and all the streaks with 0.
+// newStreaksByDay returns a streaksByDay with all the positions initialized and all the streaks with 0.
 // It will have dateRange positions and each streak will be of dateRange length as well.
-func NewStreaksByDay(dateRange uint) *StreaksByDay {
-	streaksByDay := make(StreaksByDay)
+func newStreaksByDay(dateRange uint) *streaksByDay {
+	streaksByDay := make(streaksByDay)
 
 	for i := 1; i <= int(dateRange); i++ {
 		streaksByDay[i] = make([]uint, dateRange)
@@ -31,7 +39,7 @@ func NewStreaksByDay(dateRange uint) *StreaksByDay {
 // ToString converts a map of streaks by day to a printable string separated by commas.
 // Each line will be something like: key, value[0], value[1], value[2], ..., etc.
 // It will be sorted by key ascendant
-func (streaksByDay StreaksByDay) ToString() string {
+func (streaksByDay streaksByDay) ToString() string {
 	stringBuilder := strings.Builder{}
 	for i := 1; i <= len(streaksByDay); i++ {
 		streaksByDayFormatted := fmt.Sprintf("%d,%s\n", i, sliceToSingleString(streaksByDay[i]))
@@ -47,16 +55,14 @@ func sliceToSingleString(s []uint) string {
 	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(s)), ","), "[]")
 }
 
-// Calculate calculates the user retention of many users grouped by day.
-// It takes a slice of records as input. Each record should have the timestamp on the first position and the userID on the second position.
-// The return value is explained on the StreaksByDay documentation.
-func Calculate(records [][]string) StreaksByDay {
-	streaksByDay := *NewStreaksByDay(defaultDateRange)
-
+// ProcessRecords calculates the user retention of many users grouped by day.
+// It receives the records through a channel as input. Each record should have the timestamp on the first position and the userID on the second position.
+// userRetention is an immutable data structure, so this function returns a new userRetention.
+func (userRetention userRetention) ProcessRecords(records <-chan []string) userRetention {
 	startDate := time.Unix(startDateTimestamp, 0).UTC()
 	streakByUserID := make(map[models.UserID]models.UserStreak)
 
-	for _, rawRecord := range records {
+	for rawRecord := range records {
 		row := models.RowFromRecord(rawRecord)
 
 		// This is actually the number of date in the range. So the first day will be 1, the second day will be 2, etc
@@ -65,7 +71,7 @@ func Calculate(records [][]string) StreaksByDay {
 		userStreak, ok := streakByUserID[row.UserID]
 		if !ok {
 			// First streak for user
-			streaksByDay[dayToInt][0]++
+			userRetention.streaksByDay[dayToInt][0]++
 			streakByUserID[row.UserID] = models.UserStreak{FirstDay: dayToInt, LastDay: dayToInt}
 		} else {
 			// User already has a streak
@@ -80,17 +86,23 @@ func Calculate(records [][]string) StreaksByDay {
 				// Currently, it has a streak, so we have to sum on the start date
 				differenceSinceStart := dayToInt - userStreak.FirstDay
 
-				streaksByDay[userStreak.FirstDay][differenceSinceStart-1]--
-				streaksByDay[userStreak.FirstDay][differenceSinceStart]++
+				// Decrease current day streak, and add to the next day current streak
+				userRetention.streaksByDay[userStreak.FirstDay][differenceSinceStart-1]--
+				userRetention.streaksByDay[userStreak.FirstDay][differenceSinceStart]++
 
 				streakByUserID[row.UserID] = models.UserStreak{FirstDay: userStreak.FirstDay, LastDay: dayToInt}
 			} else {
-				// NewStreaksByDay streak
-				streaksByDay[dayToInt][0]++
+				// newStreaksByDay streak
+				userRetention.streaksByDay[dayToInt][0]++
 				streakByUserID[row.UserID] = models.UserStreak{FirstDay: dayToInt, LastDay: dayToInt}
 			}
 		}
 	}
 
-	return streaksByDay
+	return userRetention
+}
+
+// Get returns the user retention processed with ProcessRecords in a printable way separated by comma.
+func (userRetention userRetention) Get() string {
+	return userRetention.streaksByDay.ToString()
 }

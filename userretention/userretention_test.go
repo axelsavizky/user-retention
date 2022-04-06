@@ -25,7 +25,7 @@ func TestNewStreaksByDay(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// When
-			streaksByDay := *NewStreaksByDay(tc.givenDateRange)
+			streaksByDay := *newStreaksByDay(tc.givenDateRange)
 
 			// Then
 			require.Equal(t, int(tc.givenDateRange), len(streaksByDay), "It should have same entries as days in range")
@@ -49,10 +49,10 @@ func TestToString(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		given    StreaksByDay
+		given    streaksByDay
 		expected string
 	}{
-		{"empty date range", *NewStreaksByDay(0), ""},
+		{"empty date range", *newStreaksByDay(0), ""},
 		{"single day range", singleDateRange, fmt.Sprintf("1,%d\n", randomStreak)},
 		{"five days range", fiveDaysRange, fiveDaysExpectedString},
 	}
@@ -64,25 +64,25 @@ func TestToString(t *testing.T) {
 	}
 }
 
-func TestCalculate(t *testing.T) {
+func TestProcessRecords(t *testing.T) {
 	// Given
 	singleUserActivity := [][]models.UserID{
 		{1},
 	}
-	singleUserStreak := *NewStreaksByDay(defaultDateRange)
+	singleUserStreak := *newStreaksByDay(defaultDateRange)
 	singleUserStreak[1][0] = 1
 
 	twoDaysActivity := [][]models.UserID{
 		{1}, {1},
 	}
-	twoDaysStreak := *NewStreaksByDay(defaultDateRange)
+	twoDaysStreak := *newStreaksByDay(defaultDateRange)
 	twoDaysStreak[1][1] = 1
 
 	twoDaysDifferentUsersActivity := [][]models.UserID{
 		{1, 2}, {1},
 	}
 
-	twoDaysDifferentUsersStreak := *NewStreaksByDay(defaultDateRange)
+	twoDaysDifferentUsersStreak := *newStreaksByDay(defaultDateRange)
 	twoDaysDifferentUsersStreak[1][0] = 1
 	twoDaysDifferentUsersStreak[1][1] = 1
 
@@ -93,7 +93,7 @@ func TestCalculate(t *testing.T) {
 	manyStreaksForSameUserActivity := [][]models.UserID{
 		{1, 2}, {1}, {2},
 	}
-	manyStreaksForSameUser := *NewStreaksByDay(defaultDateRange)
+	manyStreaksForSameUser := *newStreaksByDay(defaultDateRange)
 	manyStreaksForSameUser[1][0] = 1
 	manyStreaksForSameUser[1][1] = 1
 	manyStreaksForSameUser[3][0] = 1
@@ -101,7 +101,7 @@ func TestCalculate(t *testing.T) {
 	moreDaysMoreUsersActivity := [][]models.UserID{
 		{1, 2, 3, 4, 1}, {1, 3}, {1, 2, 3}, {1, 2}, {1, 5},
 	}
-	moreDaysMoreUsersStreak := *NewStreaksByDay(defaultDateRange)
+	moreDaysMoreUsersStreak := *newStreaksByDay(defaultDateRange)
 	moreDaysMoreUsersStreak[1][0] = 2
 	moreDaysMoreUsersStreak[1][2] = 1
 	moreDaysMoreUsersStreak[1][4] = 1
@@ -109,11 +109,11 @@ func TestCalculate(t *testing.T) {
 	moreDaysMoreUsersStreak[5][0] = 1
 
 	testCases := []struct {
-		name     string
-		given    [][]string
-		expected StreaksByDay
+		name         string
+		givenRecords [][]string
+		expected     streaksByDay
 	}{
-		{"empty date range", [][]string{}, *NewStreaksByDay(defaultDateRange)},
+		{"empty date range", [][]string{}, *newStreaksByDay(defaultDateRange)},
 		{"single day with single user", createRecords(singleUserActivity), singleUserStreak},
 		{"two days same user", createRecords(twoDaysActivity), twoDaysStreak},
 		{"two days different users", createRecords(twoDaysDifferentUsersActivity), twoDaysDifferentUsersStreak},
@@ -124,7 +124,16 @@ func TestCalculate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, Calculate(tc.given))
+			recordsChannel := make(chan []string, 10)
+			userRetention := *New()
+			go func() {
+				defer close(recordsChannel)
+				for _, givenRecord := range tc.givenRecords {
+					recordsChannel <- givenRecord
+				}
+			}()
+			userRetention = userRetention.ProcessRecords(recordsChannel)
+			assert.Equal(t, tc.expected, userRetention.streaksByDay)
 		})
 	}
 }
@@ -150,8 +159,8 @@ func createRecords(usersByDay [][]models.UserID) [][]string {
 
 // every day will have the same streak in each possible day
 // ex.: day 2 can not have a streak on day 1
-func generateStreaksWithRandomValue(dateRange, randomStreak uint) StreaksByDay {
-	streaksByDay := StreaksByDay{}
+func generateStreaksWithRandomValue(dateRange, randomStreak uint) streaksByDay {
+	streaksByDay := streaksByDay{}
 	for i := 1; i <= int(dateRange); i++ {
 		streaks := make([]uint, dateRange)
 		for j := i - 1; j < int(dateRange); j++ {
