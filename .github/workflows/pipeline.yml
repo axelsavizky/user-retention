@@ -25,6 +25,6 @@ jobs:
           go version
           go get -u golang.org/x/lint/golint
       - name: Test
-        run: go test -v
+        run: go test -v ./...
       - name: Build
         run: go build .
